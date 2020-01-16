@@ -1,0 +1,97 @@
+---
+
+- hosts: all
+  vars:
+    - my_home: "/home/bp"
+    - docker_compose_version: "1.25.1"
+  tasks:
+    - name: Install VSCode
+      become: yes
+      apt:
+        deb: https://go.microsoft.com/fwlink/?LinkID=760868
+
+    - name: Install Amazon Web Services (AWS) Command Line Utility (CLI)
+      # Note: Installs to Virtual Environment Due to Ansible Running in Virtual Environment
+      pip:
+        name: awscli
+        executable: pip3
+        extra_args: --upgrade
+
+    # Docker Install
+    - name: Install Docker Repository
+      become: yes
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg-agent
+        - software-properties-common
+
+    # Docker add GPG Key
+    - name: Add Docker GPG Key
+      become: yes
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+
+    - name: Add Docker Repository
+      become: yes
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+
+    - name: Install Docker
+      become: yes
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+
+    # Docker Postinstall
+    # https://docs.docker.com/install/linux/linux-postinstall/
+    - name: Docker; Create the docker group
+      become: yes
+      group:
+        name: docker
+        state: present
+
+    - name: Docker; Add my login to docker group
+      become: yes
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+    
+    - name: Docker; Start on boot
+      become: yes 
+      systemd:
+        name: docker
+        enabled: yes
+        state: reloaded
+
+    # Equivalent of:
+    # curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" \
+    # -o /usr/local/bin/docker-compose
+    - name: docker-compose; Install
+      become: yes
+      get_url:
+        url: https://github.com/docker/compose/releases/download/{{ docker_compose_version}}/docker-compose-Linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        force: yes
+        mode: 0755
+  
+   # Install vscode Extensions: https://code.visualstudio.com/docs/editor/extension-gallery#_command-line-extension-management
+    - name: Microsoft vscode; Install Extensions
+      shell: "code --install-extension {{ item }}"
+      loop:
+        - "ms-python.python"
+        - "ms-azuretools.vscode-docker"
+        - "lextudio.restructuredtext"
+        - "esbenp.prettier-vscode"
+
+...
+
