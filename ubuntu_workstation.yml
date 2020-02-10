@@ -1,5 +1,4 @@
 ---
-
 - hosts: all
   vars:
     - my_home: "/home/bp"
@@ -18,7 +17,7 @@
         extra_args: --upgrade
 
     # Docker Install
-    - name: Install Docker Repository
+    - name: Install Docker Install Dependencies
       become: yes
       apt:
         name: "{{ item }}"
@@ -36,10 +35,13 @@
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
 
-    - name: Add Docker Repository
+    - name: Add Apt Repositories
       become: yes
       apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+        repo: "{{ item }}"
+      loop:
+        - "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+        - "ppa:ubuntugis/ppa"
 
     - name: Install Docker
       become: yes
@@ -65,9 +67,9 @@
         name: "{{ ansible_user }}"
         groups: docker
         append: yes
-    
+
     - name: Docker; Start on boot
-      become: yes 
+      become: yes
       systemd:
         name: docker
         enabled: yes
@@ -83,8 +85,8 @@
         dest: /usr/local/bin/docker-compose
         force: yes
         mode: 0755
-  
-   # Install vscode Extensions: https://code.visualstudio.com/docs/editor/extension-gallery#_command-line-extension-management
+
+    # Install vscode Extensions: https://code.visualstudio.com/docs/editor/extension-gallery#_command-line-extension-management
     - name: Microsoft vscode; Install Extensions
       shell: "code --install-extension {{ item }}"
       loop:
@@ -92,6 +94,40 @@
         - "ms-azuretools.vscode-docker"
         - "lextudio.restructuredtext"
         - "esbenp.prettier-vscode"
+        - "dsznajder.es7-react-js-snippets"
 
-...
+    - name: Dependencies for Rasterio
+      become: yes
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - python-numpy
+        - gdal-bin
+        - libgdal-dev
+
+    - name: Install Apache2 Web Server and ssh
+      become: yes
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - "apache2"
+        - "openssh-server"
+
+    - name: Enable SSL
+      become: yes
+      shell: "a2enmod ssl"
+
+    - name: Restart Apache2 and SSH Services
+      become: yes
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: reloaded
+      loop:
+        - "apache2"
+        - "ssh"
+
+---
 
